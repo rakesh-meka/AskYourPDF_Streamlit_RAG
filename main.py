@@ -1,60 +1,14 @@
 import streamlit as st
 import os
 import tempfile
-import sys
-
-try:
-    from langchain_community.vectorstores import FAISS
-    st.success("FAISS imported")
-
-    from langchain_groq import ChatGroq
-    st.success("Groq imported")
-
-    from langchain_huggingface import HuggingFaceEmbeddings
-    st.success("Embeddings imported")
-
-except Exception as e:
-    st.error(str(e))
-
 from dotenv import load_dotenv
 
-from langchain.chains import (
-    create_history_aware_retriever,
-    create_retrieval_chain,
-)
-
-from langchain.chains.combine_documents import (
-    create_stuff_documents_chain,
-)
-
-from langchain_core.prompts import (
-    ChatPromptTemplate,
-    MessagesPlaceholder,
-)
-
-from langchain_core.runnables.history import (
-    RunnableWithMessageHistory,
-)
-
-from langchain_community.chat_message_histories import (
-    ChatMessageHistory,
-)
-
-from langchain_community.document_loaders import (
-    PyPDFLoader,
-)
-
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import FAISS
-
-from langchain_text_splitters import (
-    RecursiveCharacterTextSplitter,
-)
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from langchain_groq import ChatGroq
-
-from langchain_huggingface import (
-    HuggingFaceEmbeddings,
-)
+from langchain_huggingface import HuggingFaceEmbeddings
 
 # ==========================================
 # PAGE CONFIG
@@ -75,11 +29,6 @@ st.markdown(
     <style>
         .main {
             padding-top: 1rem;
-        }
-
-        .stChatMessage {
-            border-radius: 12px;
-            padding: 10px;
         }
 
         .title-text {
@@ -106,7 +55,7 @@ groq_key = os.getenv("GROQ_API_KEY")
 
 if not groq_key:
     st.error(
-        "GROQ_API_KEY not found. Please configure your .env file or Streamlit Secrets."
+        "GROQ_API_KEY not found. Add it to .env locally or Streamlit Secrets."
     )
     st.stop()
 
@@ -121,21 +70,8 @@ llm = ChatGroq(
 )
 
 embeddings = HuggingFaceEmbeddings(
-    model_name="all-MiniLM-L6-v2",
+    model_name="all-MiniLM-L6-v2"
 )
-
-# ==========================================
-# CHAT HISTORY
-# ==========================================
-
-store = {}
-
-def get_session_history(session_id):
-
-    if session_id not in store:
-        store[session_id] = ChatMessageHistory()
-
-    return store[session_id]
 
 # ==========================================
 # SESSION STATE
@@ -164,21 +100,20 @@ with st.sidebar:
         """
         ### About
 
-        Upload one or more PDF documents and chat with them using AI.
+        Upload one or more PDF files and chat with them.
 
-        **Powered By**
+        **Tech Stack**
         - Groq
         - LangChain
         - FAISS
-        - HuggingFace Embeddings
+        - HuggingFace
+        - Streamlit
         """
     )
 
     st.markdown("---")
 
     if st.button("🗑️ Clear Chat"):
-
-        store.clear()
 
         st.session_state.messages = []
 
@@ -194,7 +129,7 @@ st.markdown(
 )
 
 st.markdown(
-    '<div class="subtitle-text">Upload PDFs, wait for indexing, and start chatting with your documents.</div>',
+    '<div class="subtitle-text">Upload PDFs and start chatting with your documents.</div>',
     unsafe_allow_html=True,
 )
 
@@ -211,18 +146,18 @@ uploaded_files = st.file_uploader(
 )
 
 # ==========================================
-# PROCESS PDFs
+# PROCESS PDFS
 # ==========================================
 
 if uploaded_files and not st.session_state.pdf_ready:
 
     with st.spinner(
-        "📄 Processing PDFs, Please wait."
+        "📄 Processing PDFs, Please wait...!"
     ):
 
-        all_docs = []
-
         try:
+
+            all_docs = []
 
             for uploaded_file in uploaded_files:
 
@@ -260,7 +195,7 @@ if uploaded_files and not st.session_state.pdf_ready:
             if len(chunks) == 0:
 
                 st.error(
-                    "Unable to create chunks from PDFs."
+                    "Unable to create chunks from uploaded PDFs."
                 )
 
                 st.stop()
@@ -274,7 +209,7 @@ if uploaded_files and not st.session_state.pdf_ready:
             st.session_state.pdf_ready = True
 
             st.success(
-                print(" Succesfully uploaded!")
+                Print("Sucessfully Uploaded!")
             )
 
         except Exception as e:
@@ -286,7 +221,7 @@ if uploaded_files and not st.session_state.pdf_ready:
             st.stop()
 
 # ==========================================
-# PDF STATUS
+# STATUS
 # ==========================================
 
 if not uploaded_files:
@@ -317,8 +252,6 @@ for message in st.session_state.messages:
 # CHAT SECTION
 # ==========================================
 
-session_id = "default"
-
 if st.session_state.pdf_ready:
 
     question = st.chat_input(
@@ -335,118 +268,43 @@ if st.session_state.pdf_ready:
         )
 
         with st.chat_message("user"):
+
             st.markdown(question)
 
         with st.chat_message("assistant"):
 
-            with st.spinner(
-                "🤖 Thinking..."
-            ):
+            with st.spinner("🤖 Thinking..."):
 
                 try:
 
-                    retriever = (
-                        st.session_state.vectorstore.as_retriever(
-                            search_kwargs={"k": 4}
-                        )
+                    docs = st.session_state.vectorstore.similarity_search(
+                        question,
+                        k=4
                     )
 
-                    contextualize_q_prompt = (
-                        ChatPromptTemplate.from_messages(
-                            [
-                                (
-                                    "system",
-                                    """
-                                    Given chat history and latest user question,
-                                    rewrite it into a standalone question.
-                                    """
-                                ),
-                                MessagesPlaceholder(
-                                    "chat_history"
-                                ),
-                                (
-                                    "human",
-                                    "{input}"
-                                ),
-                            ]
-                        )
+                    context = "\n\n".join(
+                        [doc.page_content for doc in docs]
                     )
 
-                    history_aware_retriever = (
-                        create_history_aware_retriever(
-                            llm,
-                            retriever,
-                            contextualize_q_prompt,
-                        )
-                    )
+                    prompt = f"""
+You are a helpful PDF assistant.
 
-                    qa_prompt = (
-                        ChatPromptTemplate.from_messages(
-                            [
-                                (
-                                    "system",
-                                    """
-                                    You are a helpful PDF assistant.
+Answer ONLY from the provided context.
 
-                                    Answer ONLY using the provided context.
+If the answer is not available in the context, respond:
 
-                                    If the answer is not available in the context,
-                                    say:
+"I couldn't find that information in the uploaded documents."
 
-                                    "I couldn't find that information in the uploaded documents."
+Context:
+{context}
 
-                                    Context:
+Question:
+{question}
+"""
 
-                                    {context}
-                                    """
-                                ),
-                                MessagesPlaceholder(
-                                    "chat_history"
-                                ),
-                                (
-                                    "human",
-                                    "{input}"
-                                ),
-                            ]
-                        )
-                    )
+                    response = llm.invoke(prompt)
 
-                    document_chain = (
-                        create_stuff_documents_chain(
-                            llm,
-                            qa_prompt,
-                        )
-                    )
-
-                    rag_chain = (
-                        create_retrieval_chain(
-                            history_aware_retriever,
-                            document_chain,
-                        )
-                    )
-
-                    conversational_chain = (
-                        RunnableWithMessageHistory(
-                            rag_chain,
-                            lambda sid: get_session_history(
-                                sid
-                            ),
-                            input_messages_key="input",
-                            history_messages_key="chat_history",
-                            output_messages_key="answer",
-                        )
-                    )
-
-                    response = conversational_chain.invoke(
-                        {"input": question},
-                        config={
-                            "configurable": {
-                                "session_id": session_id
-                            }
-                        }
-                    )
-
-                    answer = response["answer"]
+                    answer = response.content
 
                     st.markdown(answer)
 
