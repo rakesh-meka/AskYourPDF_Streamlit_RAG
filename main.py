@@ -6,8 +6,12 @@ import sys
 st.write("Python:", sys.version)
 
 try:
-    import langchain
-    st.success(f"LangChain imported: {langchain.__version__}")
+    from langchain.chains.combine_documents import (
+        create_stuff_documents_chain
+    )
+
+    st.success("combine_documents imported")
+
 except Exception as e:
     st.error(str(e))
 
