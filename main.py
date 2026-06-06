@@ -1,6 +1,11 @@
 import streamlit as st
 import os
 import tempfile
+import sys
+
+st.write("Python Version:", sys.version)
+st.stop()
+
 from dotenv import load_dotenv
 
 from langchain.chains import (
