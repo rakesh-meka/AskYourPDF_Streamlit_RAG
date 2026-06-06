@@ -3,19 +3,18 @@ import os
 import tempfile
 import sys
 
-st.write("Python:", sys.version)
-
 try:
-    from langchain.chains.combine_documents import (
-        create_stuff_documents_chain
-    )
+    from langchain_community.vectorstores import FAISS
+    st.success("FAISS imported")
 
-    st.success("combine_documents imported")
+    from langchain_groq import ChatGroq
+    st.success("Groq imported")
+
+    from langchain_huggingface import HuggingFaceEmbeddings
+    st.success("Embeddings imported")
 
 except Exception as e:
     st.error(str(e))
-
-st.stop()
 
 from dotenv import load_dotenv
 
