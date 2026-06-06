@@ -209,7 +209,7 @@ if uploaded_files and not st.session_state.pdf_ready:
             st.session_state.pdf_ready = True
 
             st.success(
-                Print("Sucessfully Uploaded!")
+                print("Sucessfully Uploaded!")
             )
 
         except Exception as e:
