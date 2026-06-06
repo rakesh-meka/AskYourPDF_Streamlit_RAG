@@ -112,14 +112,20 @@ if uploaded_file:
 
         chunks = splitter.split_documents(docs)
 
-        vectorstore = FAISS.from_documents(
-            chunks,
-            embeddings
+        if not chunks:
+            st.error(
+        "No readable text found in the uploaded PDF."
         )
+    st.stop()
 
-        st.session_state.vectorstore = vectorstore
+    vectorstore = FAISS.from_documents(
+         chunks,
+         embeddings
+         )
 
-        st.success("PDF processed successfully!")
+    st.session_state.vectorstore = vectorstore
+
+    st.success("PDF processed successfully!")
 
 # -------------------------
 # CHAT
