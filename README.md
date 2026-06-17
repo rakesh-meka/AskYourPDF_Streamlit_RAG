@@ -154,7 +154,6 @@ streamlit run main.py
 
 ## 🔮 Future Enhancements
 
-* Multi-PDF support
 * Source citations in responses
 * Hybrid search (Keyword + Semantic Search)
 * Persistent chat history
